@@ -60,7 +60,7 @@ public struct SSHAgent: SSHAuthMethod {
 public struct SSHKey: SSHAuthMethod {
     
     public let privateKey: String
-    public let publicKey: String
+    public let publicKey: String?
     public let passphrase: String?
     
     /// Creates a new key-based authentication
@@ -80,11 +80,19 @@ public struct SSHKey: SSHAuthMethod {
     }
     
     public func authenticate(ssh: SSH, username: String) throws {
+         // If programatically given a full key, use it
+         if privateKey.hasPrefix("-----") {
+             try ssh.session.authenticate(username: username,
+                                              privateKeyFromMemory: privateKey,
+                                              publicKey: publicKey,
+                                              passphrase: passphrase)
+             return
+        }
         // If programatically given a passphrase, use it
         if let passphrase = passphrase {
             try ssh.session.authenticate(username: username,
                                              privateKey: privateKey,
-                                             publicKey: publicKey,
+                                             publicKey: publicKey ?? self.privateKey + ".pub",
                                              passphrase: passphrase)
             return
         }
@@ -93,7 +101,7 @@ public struct SSHKey: SSHAuthMethod {
         do {
             try ssh.session.authenticate(username: username,
                                              privateKey: privateKey,
-                                             publicKey: publicKey,
+                                             publicKey: publicKey ?? self.privateKey + ".pub",
                                              passphrase: nil)
             return
         } catch {}
@@ -108,7 +116,7 @@ public struct SSHKey: SSHAuthMethod {
         let enteredPassphrase = String(cString: getpass("Enter passphrase for \(privateKey) (empty for no passphrase):"))
         try ssh.session.authenticate(username: username,
                                          privateKey: privateKey,
-                                         publicKey: publicKey,
+                                         publicKey: publicKey ?? self.privateKey + ".pub",
                                          passphrase: enteredPassphrase)
     }
     
